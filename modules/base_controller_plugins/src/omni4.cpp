@@ -92,6 +92,7 @@ namespace base_controller_plugins{
   	_nh.param("invert_y", this->InvertY, false);
   	_nh.param("invert_z", this->InvertZ, false);
   
+    
   
   	motor0CmdVel_pub = nh.advertise<std_msgs::Float64>("motor0_cmd_vel", 1);
   	motor1CmdVel_pub = nh.advertise<std_msgs::Float64>("motor1_cmd_vel", 1);
@@ -100,6 +101,9 @@ namespace base_controller_plugins{
   
   	targetVelX = targetVelY = targetRotZ = 0.0;
   
+    int ctrl_freq;
+    _nh.param("ctrl_freq", ctrl_freq, 20);
+
   	lastTarget[0] = 0.0;
   	lastTarget[1] = 0.0;
   	lastTarget[2] = 0.0;
@@ -114,8 +118,18 @@ namespace base_controller_plugins{
     odom_twist_pub = nh.advertise<nav_msgs::Odometry>("odom_twist", 10);
 
   	cmdVel_sub = nh.subscribe<geometry_msgs::Twist>("cmd_vel", 10, &Omni4::CmdVelCallback, this);
+	control_tim = nh.createTimer(ros::Duration(1.0 / ctrl_freq), &Omni4::TimerCallback, this);
     //main
   	NODELET_INFO("base_controller node has started.");
+  }
+
+  void Omni4::TimerCallback(const ros::TimerEvent& event)
+  {
+	CalcWheelSpeed(event.current_real.toSec() - event.last_real.toSec());
+	motor0CmdVel_pub.publish(motorCmdVelmsg[0]);
+	motor1CmdVel_pub.publish(motorCmdVelmsg[1]);
+	motor2CmdVel_pub.publish(motorCmdVelmsg[2]);
+    motor3CmdVel_pub.publish(motorCmdVelmsg[3]);
   }
   
   void Omni4::CmdVelCallback(const geometry_msgs::Twist::ConstPtr& msg)
@@ -137,14 +151,7 @@ namespace base_controller_plugins{
   		this->targetRotZ *= -1;
   	}
   
-  	current_time = ros::Time::now().toSec();
-  	CalcWheelSpeed(current_time - last_time);
-  	motor0CmdVel_pub.publish(motorCmdVelmsg[0]);
-  	motor1CmdVel_pub.publish(motorCmdVelmsg[1]);
-  	motor2CmdVel_pub.publish(motorCmdVelmsg[2]);
-  	motor3CmdVel_pub.publish(motorCmdVelmsg[3]);
-  
-  	last_time = current_time;
+  	
   
    odom_twist.header.frame_id = "/omni4/odom";
    odom_twist.header.stamp = ros::Time::now();
@@ -168,7 +175,7 @@ namespace base_controller_plugins{
   	t[2] = -((targetVelX * sin(5 * M_PI / 4))	+ (targetVelY * cos(5 * M_PI / 4)) 	+ (targetRotZ * RobotRadius)) / wheel_radius;
     t[3] = -((targetVelX * sin(7 * M_PI / 4))	+ (targetVelY * cos(7 * M_PI / 4)) 	+ (targetRotZ * RobotRadius)) / wheel_radius;
   
-  	double _k = 4.0;
+  	double _k = 12.0;
   
   	if(this->LimitVelocity){
   		for(int i = 0; i < 4; i++){
@@ -198,7 +205,7 @@ namespace base_controller_plugins{
   		}
   
   		for(int i = 0; i < 4; i++){
-  			t[i] = lastTarget[i] + ((t[i] - lastTarget[i]) * _k);
+  			t[i] = _k*lastTarget[i] + ((t[i] - lastTarget[i]) * _k);
   		}
   	}
   

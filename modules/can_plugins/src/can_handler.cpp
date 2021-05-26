@@ -10,6 +10,8 @@
 #include <std_msgs/UInt16.h>
 #include <std_msgs/Float32.h>
 #include <std_msgs/Float64.h>
+#include <std_msgs/Int32.h>
+#include <std_msgs/Int32MultiArray.h>
 
 #include <boost/array.hpp>
 
@@ -50,6 +52,9 @@ namespace can_plugins{
       ros::Publisher  _base_odom_yaw_pub;
 
       ros::Publisher _limit_switch_pub;
+      ros::Publisher _stream_conf_pub;
+      ros::Publisher _stream_target_pub;
+      
 
       ros::Publisher  _test_pub;
       ros::Subscriber _test_sub;
@@ -65,6 +70,7 @@ namespace can_plugins{
 
       static constexpr uint16_t id_limit = 0x7fd;
       static constexpr uint16_t id_photo = 0x777;
+      static constexpr uint16_t id_stream = 0x7ff;
   };
 
   void CanHandler::onInit(){
@@ -78,7 +84,9 @@ namespace can_plugins{
     _base_odom_yaw_pub		    = _nh.advertise<std_msgs::Float32>("base/odom/yaw", 1);
 
     _limit_switch_pub = _nh.advertise<std_msgs::UInt8>("limit_switch",10);
-
+    _stream_conf_pub = _nh.advertise<std_msgs::Int32>("stream_conf",10);
+    _stream_target_pub = _nh.advertise<std_msgs::Int32>("stream_target",10);
+    
     _test_pub = _nh.advertise<std_msgs::UInt8>("test_rx",1000);
     _test_sub = _nh.subscribe<std_msgs::UInt8>("test_tx",1000,&CanHandler::TestTxCallback,this);
 
@@ -100,7 +108,10 @@ namespace can_plugins{
 
     std_msgs::UInt8 _test_msg;
     std_msgs::UInt8 _limit_switch_msg;
-
+    uint64_t stream_tmp = 0;
+    std_msgs::Int32 _stream_conf_msg;
+    std_msgs::Int32 _stream_target_msg;
+    
     switch(msg->id)
     {
       case id_baseOdomX:
@@ -116,7 +127,7 @@ namespace can_plugins{
       case id_baseOdomYaw:
         can_unpack(msg->data, _base_odom_yaw_msg.data);
         _base_odom_yaw_pub.publish(_base_odom_yaw_msg);
-        break;
+        break; 
 
       case id_test_rx:
         can_unpack(msg->data, _test_msg.data);
@@ -132,7 +143,16 @@ namespace can_plugins{
         can_unpack(msg->data,_limit_switch_msg.data);
         _limit_switch_pub.publish(_limit_switch_msg);
         break;
-      default:
+
+      case id_stream:
+        can_unpack(msg->data,stream_tmp);
+        _stream_target_msg.data = (int)(stream_tmp>>32);
+        _stream_conf_msg.data = (int)stream_tmp;
+        _stream_target_pub.publish(_stream_target_msg);
+        _stream_conf_pub.publish(_stream_conf_msg);
+        break;
+
+      default:  
         break;
     }
   }

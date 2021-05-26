@@ -25,13 +25,14 @@ generate_messages(
 
 catkin_package(
 #  INCLUDE_DIRS include
-  LIBRARIES can_plugins
-  CATKIN_DEPENDS nodelet pluginlib roscpp std_msgs message_runtime
+   LIBRARIES can_plugins
+   CATKIN_DEPENDS nodelet pluginlib roscpp std_msgs message_runtime
 #  DEPENDS system_lib
 )
 
 include_directories(
   include
+  
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -50,5 +51,3 @@ target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
 
-add_executable(solenoid_driver_node src/solenoid_driver_node.cpp)
-target_link_libraries(solenoid_driver_node ${catkin_LIBRARIES})
